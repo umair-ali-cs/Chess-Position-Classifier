@@ -100,9 +100,6 @@ numpy
 
 ## Team
 
-- Umair Ali
-- Muhammad Shafay
-- Abdul Wasay
-- Syed Saad Ali Shah
+- Umair Ali - 023-24-0106
 
 **Sukkur IBA University · AI/ML Project 2025**
