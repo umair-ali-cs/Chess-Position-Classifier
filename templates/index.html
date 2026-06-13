@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Chess Position Difficulty Classifier</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600&display=swap');
+
+    :root {
+      --bg:        #f4f1e1;
+      --surface:   #ffffff;
+      --surface2:  #faf7f0;
+      --border:    #c8c2ae;
+      --accent:    #b86f2c;
+      --accent2:   #e9e0cf;
+      --text:      #2a2418;
+      --muted:     #6e6859;
+      --easy:      #3b8c4a;
+      --medium:    #e09d32;
+      --hard:      #c93a2b;
+      --light-sq:  #f0d9b5;
+      --dark-sq:   #b58863;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'IBM Plex Sans', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      border-bottom: 1px solid var(--border);
+      padding: 20px 40px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .logo {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 3px;
+    }
+
+    .logo-sq {
+      border-radius: 2px;
+    }
+
+    .logo-sq:nth-child(1) { background: var(--light-sq); }
+    .logo-sq:nth-child(2) { background: var(--dark-sq); }
+    .logo-sq:nth-child(3) { background: var(--dark-sq); }
+    .logo-sq:nth-child(4) { background: var(--light-sq); }
+
+    header h1 {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      color: var(--text);
+    }
+
+    header span {
+      font-size: 13px;
+      color: var(--muted);
+      font-family: 'IBM Plex Mono', monospace;
+    }
+
+    .main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 480px 1fr;
+      gap: 0;
+      max-width: 1100px;
+      margin: 40px auto;
+      padding: 0 20px;
+      width: 100%;
+    }
+
+    /* LEFT: Board */
+    .board-panel {
+      padding-right: 40px;
+    }
+
+    .board-label {
+      font-size: 11px;
+      font-family: 'IBM Plex Mono', monospace;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    #chess-board {
+      width: 400px;
+      height: 400px;
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      grid-template-rows: repeat(8, 1fr);
+      border: 3px solid var(--dark-sq);
+      border-radius: 4px;
+      overflow: hidden;
+      box-shadow: 0 4px 24px rgba(100,60,0,0.15);
+    }
+
+    .square {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .square.light { background: var(--light-sq); }
+    .square.dark  { background: var(--dark-sq); }
+
+    .piece {
+      width: 80%;
+      height: 80%;
+      object-fit: contain;
+      user-select: none;
+      pointer-events: none;
+    }
+
+    .coord {
+      position: absolute;
+      font-size: 9px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-weight: 600;
+      opacity: 0.6;
+    }
+
+    .coord.file { bottom: 2px; right: 3px; }
+    .coord.rank { top: 2px; left: 3px; }
+
+    /* RIGHT: Controls */
+    .control-panel {
+      border-left: 1px solid var(--border);
+      padding-left: 40px;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+
+    .section-title {
+      font-size: 11px;
+      font-family: 'IBM Plex Mono', monospace;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .fen-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    textarea#fen-input {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      padding: 12px;
+      resize: vertical;
+      min-height: 80px;
+      width: 100%;
+      outline: none;
+      transition: border-color 0.2s;
+      line-height: 1.6;
+    }
+
+    textarea#fen-input:focus {
+      border-color: var(--accent);
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    button {
+      border: none;
+      border-radius: 4px;
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 10px 20px;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+
+    button:active { transform: scale(0.98); }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #ffffff;
+      flex: 1;
+    }
+
+    .btn-secondary {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn-primary:hover { opacity: 0.88; }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* Result */
+    .result-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 20px;
+      min-height: 100px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      justify-content: center;
+    }
+
+    .result-label {
+      font-size: 11px;
+      font-family: 'IBM Plex Mono', monospace;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .result-value {
+      font-size: 36px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      transition: color 0.3s;
+    }
+
+    .result-value.easy   { color: var(--easy); }
+    .result-value.medium { color: var(--medium); }
+    .result-value.hard   { color: var(--hard); }
+    .result-value.idle   { color: var(--border); }
+
+    .result-desc {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    /* Presets */
+    .presets {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .preset-btn {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      text-align: left;
+      padding: 10px 14px;
+      font-size: 12px;
+      font-family: 'IBM Plex Mono', monospace;
+      border-radius: 4px;
+      font-weight: 400;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .preset-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--surface2); }
+
+    .preset-tag {
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-weight: 600;
+    }
+
+    .tag-easy   { background: rgba(106,170,74,0.18);  color: var(--easy); }
+    .tag-medium { background: rgba(212,168,50,0.18);  color: var(--medium); }
+    .tag-hard   { background: rgba(200,74,58,0.18);   color: var(--hard); }
+
+    /* Error */
+    .error-msg {
+      font-size: 12px;
+      color: var(--hard);
+      font-family: 'IBM Plex Mono', monospace;
+      display: none;
+    }
+
+    /* Stats */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .stat-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 12px;
+    }
+
+    .stat-value {
+      font-size: 20px;
+      font-weight: 600;
+      font-family: 'IBM Plex Mono', monospace;
+      color: var(--accent);
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 16px 40px;
+      font-size: 12px;
+      color: var(--muted);
+      font-family: 'IBM Plex Mono', monospace;
+      display: flex;
+      justify-content: space-between;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-sq"></div>
+    <div class="logo-sq"></div>
+    <div class="logo-sq"></div>
+    <div class="logo-sq"></div>
+  </div>
+  <h1>Chess Difficulty Classifier</h1>
+  <span>/ Random Forest · 88,968 positions · F1 0.688</span>
+</header>
+
+<div class="main">
+
+  <!-- LEFT: Board -->
+  <div class="board-panel">
+    <div class="board-label">Position Preview</div>
+    <div id="chess-board"></div>
+  </div>
+
+  <!-- RIGHT: Controls -->
+  <div class="control-panel">
+
+    <!-- FEN Input -->
+    <div>
+      <div class="section-title">FEN String</div>
+      <div class="fen-group">
+        <textarea id="fen-input" placeholder="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"></textarea>
+        <div class="error-msg" id="error-msg">Invalid FEN string</div>
+        <div class="btn-row">
+          <button class="btn-primary" onclick="runPredict()">Predict Difficulty</button>
+          <button class="btn-secondary" onclick="drawBoard()">Preview Board</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Result -->
+    <div>
+      <div class="section-title">Prediction</div>
+      <div class="result-box">
+        <div class="result-label">Difficulty Level</div>
+        <div class="result-value idle" id="result-value">—</div>
+        <div class="result-desc" id="result-desc">Enter a FEN string and click Predict</div>
+      </div>
+    </div>
+
+    <!-- Model Stats -->
+    <div>
+      <div class="section-title">Model Performance</div>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-value">69%</div>
+          <div class="stat-label">Accuracy</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">0.688</div>
+          <div class="stat-label">F1 Macro</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">88,968</div>
+          <div class="stat-label">Training Samples</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">12</div>
+          <div class="stat-label">Features</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sample Positions -->
+    <div>
+      <div class="section-title">Sample Positions</div>
+      <div class="presets">
+        <button class="preset-btn" onclick="loadPreset('7k/5Q2/6K1/8/8/8/8/8 w - - 0 1')">
+          <span>Queen vs King Endgame</span>
+          <span class="preset-tag tag-easy">Easy</span>
+        </button>
+        <button class="preset-btn" onclick="loadPreset('r1bq1rk1/ppp2ppp/2n5/3np3/3P4/2N1PN2/PPP2PPP/R1BQ1RK1 w - - 0 1')">
+          <span>Middlegame — Knights Active</span>
+          <span class="preset-tag tag-medium">Medium</span>
+        </button>
+        <button class="preset-btn" onclick="loadPreset('r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1')">
+          <span>Complex Double-Edged</span>
+          <span class="preset-tag tag-hard">Hard</span>
+        </button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<footer>
+  <span>Chess Position Difficulty Classifier · Random Forest Model</span>
+  <span>Sukkur IBA University · AI/ML Project 2025</span>
+</footer>
+
+<script>
+  const BASE = 'https://www.chess.com/chess-themes/pieces/neo/150/';
+  const PIECES = {
+    1: { white: BASE+'wp.png', black: BASE+'bp.png' },
+    2: { white: BASE+'wn.png', black: BASE+'bn.png' },
+    3: { white: BASE+'wb.png', black: BASE+'bb.png' },
+    4: { white: BASE+'wr.png', black: BASE+'br.png' },
+    5: { white: BASE+'wq.png', black: BASE+'bq.png' },
+    6: { white: BASE+'wk.png', black: BASE+'bk.png' },
+  };
+
+  const FILES = ['a','b','c','d','e','f','g','h'];
+  const RANKS = ['1','2','3','4','5','6','7','8'];
+
+  function buildEmptyBoard() {
+    const board = document.getElementById('chess-board');
+    board.innerHTML = '';
+    for (let row = 7; row >= 0; row--) {
+      for (let col = 0; col < 8; col++) {
+        const sq = document.createElement('div');
+        const isLight = (row + col) % 2 === 1;
+        sq.className = `square ${isLight ? 'light' : 'dark'}`;
+        sq.id = `sq-${row * 8 + col}`;
+
+        if (col === 0) {
+          const r = document.createElement('span');
+          r.className = 'coord rank';
+          r.textContent = RANKS[row];
+          r.style.color = isLight ? '#b58863' : '#f0d9b5';
+          sq.appendChild(r);
+        }
+        if (row === 0) {
+          const f = document.createElement('span');
+          f.className = 'coord file';
+          f.textContent = FILES[col];
+          f.style.color = isLight ? '#b58863' : '#f0d9b5';
+          sq.appendChild(f);
+        }
+
+        board.appendChild(sq);
+      }
+    }
+  }
+
+  async function drawBoard() {
+    const fen = document.getElementById('fen-input').value.trim()
+                || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+    hideError();
+    try {
+      const res = await fetch('/board', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fen })
+      });
+      const data = await res.json();
+      if (!data.valid) { showError(data.error); return; }
+
+      buildEmptyBoard();
+      for (const [square, piece] of Object.entries(data.pieces)) {
+        const sq = document.getElementById(`sq-${square}`);
+        if (sq) {
+          const img = document.createElement('img');
+          img.className = 'piece';
+          img.src = PIECES[piece.type]?.[piece.color] || '';
+          img.alt = `${piece.color} piece`;
+          sq.appendChild(img);
+        }
+      }
+    } catch (e) { showError('Server error'); }
+  }
+
+  async function runPredict() {
+    const fen = document.getElementById('fen-input').value.trim();
+    if (!fen) { showError('Please enter a FEN string'); return; }
+    hideError();
+    await drawBoard();
+
+    const resultEl = document.getElementById('result-value');
+    const descEl   = document.getElementById('result-desc');
+    resultEl.textContent = '...';
+    resultEl.className = 'result-value idle';
+
+    try {
+      const res = await fetch('/predict', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fen })
+      });
+      const data = await res.json();
+      if (data.error) { showError(data.error); return; }
+
+      const level = data.prediction;
+      resultEl.textContent = level;
+      resultEl.className = `result-value ${level.toLowerCase()}`;
+
+      const descs = {
+        Easy:   'Clear material or positional advantage. The winning path is straightforward.',
+        Medium: 'Balanced or slightly uneven position. Requires accurate calculation.',
+        Hard:   'Complex, double-edged position. High tactical and strategic demands.'
+      };
+      descEl.textContent = descs[level] || '';
+    } catch (e) { showError('Prediction failed — is the model trained?'); }
+  }
+
+  function loadPreset(fen) {
+    document.getElementById('fen-input').value = fen;
+    runPredict();
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('error-msg');
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+
+  function hideError() {
+    document.getElementById('error-msg').style.display = 'none';
+  }
+
+  // Init
+  buildEmptyBoard();
+  drawBoard();
+</script>
+</body>
+</html>

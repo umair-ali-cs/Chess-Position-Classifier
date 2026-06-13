@@ -1,0 +1,7 @@
+model.pkl
+scaler.pkl
+__pycache__/
+*.pyc
+*.pyo
+plots/
+Data Visualization Plots/
